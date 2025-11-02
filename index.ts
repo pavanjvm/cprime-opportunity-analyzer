@@ -1,16 +1,13 @@
-const express = require("express");
-const dotenv = require("dotenv");
-const OpenAI = require("openai");
-const multer  = require('multer')
-const upload = multer({ dest: 'uploads/' })
-const { readFile } = require('fs').promises;
-const { unlink } = require('fs').promises;
-const fs = require("fs");
-
-
-const { PDFParse } = require('pdf-parse');
-const mammoth = require("mammoth");
-const { SYSTEM_PROMPT } = require("./systemprompt.js");
+import express, { type Request, type Response } from "express";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+import multer from "multer";
+import { readFile, unlink } from "fs/promises";
+import { v4 as uuidv4 } from "uuid";
+import { PrismaClient } from "./generated/prisma/client.js";
+import { PDFParse } from 'pdf-parse';
+import mammoth from "mammoth";
+import { SYSTEM_PROMPT } from "./systemprompt.js";
 
 dotenv.config();
 const app = express();
@@ -18,21 +15,33 @@ const port = 3000;
 
 app.use(express.json());
 
+const prisma = new PrismaClient();
+const upload = multer({ dest: "uploads/" });
 
-
-// Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🧠 Analyze uploaded file (PDF or Word)
-app.post("/analyze-transcript", upload.single("file"), async (req, res) => {
+
+interface ChatRequest {
+  message: string;
+  session_id: string;
+}
+
+interface ChatResponse {
+  reply: string;          // The bot's message
+  session_id: string;     // To link to a chat session
+  timestamp: string;      // ISO string timestamp
+}
+ 
+app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:Response)=> {
   // console.log("Headers:", req.headers);
   // console.log("File:", req.file);
 
   if (!req.file) {
     return res.status(400).json({ error: "Missing file in request" });
   }
+  const fileName = req.file.originalname;
 
   const filePath = req.file.path;
   console.log(filePath)
@@ -63,26 +72,31 @@ app.post("/analyze-transcript", upload.single("file"), async (req, res) => {
     }
 
     // Insert transcript into system prompt
-    const finalPrompt = SYSTEM_PROMPT.replace("[INSERT TRANSCRIPT HERE]", transcript);
+    const finalPrompt = [{"role":"system","content":SYSTEM_PROMPT},
+      {"role":"user","content":transcript}
+    ];
+    
 
     // 🔮 Call OpenAI
     const response = await openai.responses.create({
       model: "gpt-5",
-      input: finalPrompt,
+      input: finalPrompt as any,
     });
 
     const outputText = response.output_text
-
-    // Try to parse JSON output
-    let parsedOutput;
-    try {
-      parsedOutput = JSON.parse(outputText);
-    } catch {
-      parsedOutput = { analysis: outputText };
-    }
-
+    const session = await prisma.session.create({
+      data: {
+        fileName: fileName,
+        result: outputText,
+      },
+    });
     // ✅ Return response
-    res.json(parsedOutput);
+    res.json({
+      message: "summarised successfully",
+      session_id: session.id,
+      output : outputText
+    }
+      );
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Failed to analyze transcript" });
@@ -96,16 +110,11 @@ app.post("/analyze-transcript", upload.single("file"), async (req, res) => {
   }
 });
 
-app.post("/test-upload", upload.single("file"), (req, res) => {
-  console.log("Headers:", req.headers);
-  console.log("File:", req.file);
-
-  if (!req.file) {
-    return res.status(400).send("No file received");
-  }
-  console.log("File info:", req.file);
-  res.json({ message: "File received successfully!" });
-});
+app.post("/chat",async(req: Request<{}, ChatResponse, ChatRequest>,res:Response) =>{
+  const message = req.body.message;
+  const session_id = req.body.session_id;
+  res.send("thank you")
+})
 
 
 app.listen(port, () => {

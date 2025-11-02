@@ -1,0 +1,33 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id          String        @id @default(uuid())       // unique session ID
+  fileName    String                                   // name of uploaded file
+  result      String                                   // processed result summary
+  createdAt   DateTime      @default(now())            // timestamp
+  chatHistory ChatMessage[]                            // relation: one session → many messages
+}
+
+// Each message in the chatbot (user or bot)
+model ChatMessage {
+  id         Int      @id @default(autoincrement())    // message ID
+  sessionId  String                                   // foreign key
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       String                                   // "user" or "bot"
+  message    String                                   // actual text
+  createdAt  DateTime @default(now())                 // timestamp
+}
