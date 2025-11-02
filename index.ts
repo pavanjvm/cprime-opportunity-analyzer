@@ -86,10 +86,17 @@ app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:
     const outputText = response.output_text
     const session = await prisma.session.create({
       data: {
-        fileName: fileName,
-        
+        fileName: fileName, 
       },
     });
+    const chatMessage = await prisma.chatMessage.createMany({
+      data:[
+        {sessionId: session.id, role: "system",content :SYSTEM_PROMPT},
+        {sessionId: session.id, role: "user",content :transcript},
+        {sessionId: session.id, role: "assistant",content : outputText},
+
+      ]
+    })
     // ✅ Return response
     res.json({
       message: "summarised successfully",
@@ -113,7 +120,44 @@ app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:
 app.post("/chat",async(req: Request<{}, ChatResponse, ChatRequest>,res:Response) =>{
   const message = req.body.message;
   const session_id = req.body.session_id;
-  res.send("thank you")
+  const session = await prisma.session.findUnique({
+    where: { id: session_id },
+    include: { chatHistory: true },
+  });
+  if (!session) {
+  // handle missing session
+    return res.status(404).json({ error: "Session not found" });
+  }
+  const chatcontext = [...session.chatHistory.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+    { role: "user", content: message },]
+  
+  
+    const response = await openai.responses.create({
+      model: "gpt-5",
+      input: chatcontext as any
+
+    })
+    
+    const assistant_message = response.output_text
+    await prisma.chatMessage.createMany({
+      data : [{
+        sessionId:session_id,
+        role:"user",
+        content: message
+      },{
+        sessionId: session_id,
+        role : "assistant",
+        content: assistant_message
+      }]
+    })
+
+    res.json(
+      { message :assistant_message }
+    )
+
 })
 
 
