@@ -16,7 +16,8 @@ datasource db {
 
 model Session {
   id          String        @id @default(uuid())       // unique session ID
-  fileName    String                                   // name of uploaded file
+  fileName    String 
+  summary     String                              // name of uploaded file
   createdAt   DateTime      @default(now())            // timestamp
   chatHistory ChatMessage[]                            // relation: one session → many messages
 }

@@ -78,11 +78,7 @@ app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:
       {"role":"user","content":transcript}
     ];
     
-    const session = await prisma.session.create({
-      data: {
-        fileName: fileName, 
-      },
-    });
+    
     // 🔮 Call OpenAI
     const response = await openai.responses.create({
       model: "gpt-5",
@@ -90,6 +86,12 @@ app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:
     });
 
     const outputText = response.output_text;
+    const session = await prisma.session.create({
+      data: {
+        fileName: fileName,
+        summary: outputText 
+      },
+    });
     
     
     // ✅ Return response
