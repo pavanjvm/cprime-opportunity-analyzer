@@ -10,8 +10,9 @@ import mammoth from "mammoth";
 import { SYSTEM_PROMPT } from "./systemprompt.js";
 import { chatPrompt } from "./chatprompts.js";
 import { knowledge } from "./knowledge.js";
-import { AuthController } from "./auth/AuthController.js";
+
 import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.js";
 dotenv.config();
 const app = express();
 const port = 3000;
@@ -37,6 +38,7 @@ interface ChatResponse {
   timestamp: string;      // ISO string timestamp
 }
  
+app.use('/auth',authRouter)
 app.post("/analyze-transcript", upload.single("file"), async (req: Request, res:Response)=> {
   // console.log("Headers:", req.headers);
   // console.log("File:", req.file);
@@ -173,11 +175,7 @@ app.use(cookieParser());
 
 
 // Routes
-app.get("/azure/login", AuthController.azureLogin);
-app.get("/azure/callback", AuthController.azureCallback);
-app.post("/sign-in", AuthController.signIn);
-app.post("/sign-out", AuthController.signOut);
-app.post("/azure/refresh", AuthController.refresh);
+
 app.listen(port, () => {
   console.log(`✅ CprimeGPT-5 Analyzer running at http://localhost:${port}`);
 });

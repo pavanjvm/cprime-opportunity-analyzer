@@ -1,4 +1,6 @@
 import { ConfidentialClientApplication } from "@azure/msal-node";
+import dotenv from 'dotenv';
+dotenv.config();
 const {
   AZURE_CLIENT_ID,
   AZURE_CLIENT_SECRET,

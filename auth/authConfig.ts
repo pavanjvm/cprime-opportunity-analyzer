@@ -4,9 +4,9 @@ import type { Configuration} from '@azure/msal-node';
 
 export const msalConfig: Configuration = {
   auth: {
-    clientId: process.env.CLIENT_ID as string,
-    authority: `${process.env.CLOUD_INSTANCE}${process.env.TENANT_ID}`,
-    clientSecret: process.env.CLIENT_SECRET as string,
+    clientId: process.env.AZURE_CLIENT_ID as string,
+    authority: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}`,
+    clientSecret: process.env.AZURE_CLIENT_SECRET as string,
   },
   system: {
     loggerOptions: {
@@ -19,6 +19,6 @@ export const msalConfig: Configuration = {
   }
 };
 
-export const REDIRECT_URI = process.env.REDIRECT_URI as string;
+export const REDIRECT_URI = process.env.AZURE_REDIRECT_URI as string;
 export const POST_LOGOUT_REDIRECT_URI = process.env.POST_LOGOUT_REDIRECT_URI as string;
 export const GRAPH_ME_ENDPOINT = `${process.env.GRAPH_API_ENDPOINT as string}v1.0/me`;
