@@ -3,6 +3,7 @@ import { Epic2Service } from "../services/epic2Service.js";
 import express from "express";
 const epic2Router = express.Router();
 const upload = multer({ dest: "uploads/" });
+import cookieParser from "cookie-parser";
 
 epic2Router.post("/analyze-transcript", upload.single("file"), async (req, res) => {
   try {

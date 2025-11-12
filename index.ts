@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from "express";
 import dotenv from "dotenv";
+dotenv.config();
 import OpenAI from "openai";
 import multer from "multer";
 import { readFile, unlink } from "fs/promises";
@@ -15,7 +16,7 @@ import { authMiddleware } from './auth/authMiddleware.js'
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.js";
 import epic2Router from "./routes/epic2routes.js";
-dotenv.config();
+
 const app = express();
 const port = 3000;
 
@@ -41,7 +42,7 @@ interface ChatResponse {
 }
  
 app.use('/auth',cookieParser(),authRouter)
-app.use('/epic2',authMiddleware,epic2Router)
+app.use('/epic2',cookieParser(),authMiddleware,epic2Router)
 
 app.listen(port, () => {
   console.log(`✅ CprimeGPT-5 Analyzer running at http://localhost:${port}`);
