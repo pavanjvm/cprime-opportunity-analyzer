@@ -77,9 +77,10 @@ export class AuthController {
 
       const account = JSON.parse(accountCookie);
       const newTokens = await refreshAccessToken(account);
-      res.json(newTokens);
+      res.json(newTokens.accessToken);
     } catch (error) {
-      res.status(400).json({ error: "Token refresh failed" });
+      console.log(error)
+      res.status(400).json({ error: "couldnt get refresh tokens" });
     }
   }
 
