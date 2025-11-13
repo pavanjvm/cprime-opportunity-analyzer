@@ -1,44 +1,51 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
-
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
+    // Module & target
     "module": "nodenext",
     "target": "esnext",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
 
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    // Module resolution
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
 
-    // Stricter Typechecking Options
+    // Strict type checking
+    "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-
-    // Style Options
-    // "noImplicitReturns": true,
-    // "noImplicitOverride": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true,
-    // "noFallthroughCasesInSwitch": true,
-    // "noPropertyAccessFromIndexSignature": true,
-
-    // Recommended Options
-    "strict": true,
-    "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
     "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+
+    // Output & declaration
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // JSX (if you use React in client)
+    "jsx": "react-jsx",
+
+    // TypeScript Node globals
+    "types": ["node"],
+
+    // For path alias (optional)
+    "baseUrl": ".",
+    "paths": {
+      "@generated/*": ["generated/prisma/*"]
+    }
+  },
+
+  "include": [
+    "src",
+    "prisma",
+    "generated/prisma"  // Include your custom Prisma client
+  ],
+
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

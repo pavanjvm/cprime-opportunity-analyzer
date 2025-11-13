@@ -9,7 +9,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     if (!JWT_SECRET){
       console.log("no secret")
     }
-    const token = req.cookies.jwt || req.header("Authorization")?.replace("Bearer ", "");
+    const token = req.cookies.authcontroller_jwt || req.header("Authorization")?.replace("Bearer ", "");
     if (!token) {
       return res.status(401).json({ error: "Unauthorized, no token provided" });
     }

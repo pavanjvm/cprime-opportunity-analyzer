@@ -9,6 +9,8 @@ export async function issueJwtToken(accessToken: string, userId: string) {
     decoded?.preferred_username ||
     decoded?.upn ||
     decoded?.email;
+  console.log("email_id is",email)
+  
 
   if (!email) throw new Error("No email found in access token");
 

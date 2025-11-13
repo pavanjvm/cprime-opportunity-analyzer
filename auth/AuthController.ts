@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { exchangeCodeForTokens, refreshAccessToken } from "./azureOAuthservice.js";
 import { issueJwtToken } from "./authService.js";
+import {prisma} from "../prisma/lib/client.js"
 import {
   AZURE_AUTHORITY,
   AZURE_CLIENT_ID,
@@ -52,11 +53,17 @@ export class AuthController {
 
   static async signIn(req: Request, res: Response) {
     try {
+
       const { accessToken, email } = req.body;
-      const userId = "user-" + Date.now(); // normally from DB
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: { accessToken }, // if user exists, update access token
+        create: { email, accessToken }, // if user doesn't exist, create new one
+      });
+      const userId = user.id // normally from DB
       const jwtToken = await issueJwtToken(accessToken, userId);
 
-      res.cookie("jwt", jwtToken, {
+      res.cookie("authcontroller_jwt", jwtToken, {
         httpOnly: true,
         secure: true,
         sameSite: "lax",
