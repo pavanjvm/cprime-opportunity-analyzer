@@ -56,14 +56,46 @@ export class Epic2Service {
       } else {
         throw new Error("Unsupported file type. Upload a PDF or DOCX.");
       }
-      const opportunities = await this.getOppurtunities(email,accessToken,"hie")
+      const opp_prompt = `You are an enterprise solutions strategist specializing in identifying business opportunities based on transcripts of client conversations. I will provide you with a transcript from a client or prospect meeting.
+
+        Your tasks are:
+
+        Identify Opportunities:
+
+        Extract specific business challenges, goals, and needs mentioned in the transcript.
+
+        Map these opportunities to relevant Cprime services and capabilities
+
+        Cross-Reference with Past Successes:
+
+        Use known Cprime case studies, sales data, and project examples to find similar opportunities from the past.
+
+        Summarize what Cprime did in those cases (approach, solutions, client outcomes, KPIs).
+
+        Highlight patterns in successful deals—such as entry points, messaging that resonated, or the services that led to expansion.
+
+        Generate Insights and Recommendations:
+
+        Provide a strategic analysis on how to approach this client based on similar historical engagements.
+
+        Suggest key value propositions, potential upsells, and differentiators.
+
+        Include examples of how Cprime framed or delivered similar value in past opportunities.
+
+        Outline a possible follow-up plan (e.g., discovery workshop, capability presentation, PoC).
+
+        Transcript : ${transcript}`
+      const opportunities = await this.getOppurtunities(email,accessToken,opp_prompt)
+      
       // Prepare OpenAI prompt
       const finalPrompt = [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: transcript },
         { role: "user", content : opportunities}
       ];
-
+      console.log("cooking report")
+      console.log("opppurtunities are",opportunities)
+       
       // 3️⃣ Get summary/analysis from OpenAI
       const response = await openai.responses.create({
         model: "gpt-5",
@@ -150,7 +182,7 @@ export class Epic2Service {
   static async getOppurtunities(email:String,accessToken:String, prompt:String):Promise<string>{
     try{
     const res: AxiosResponse = await axios.post(
-      "https://external-api.example.com/signin",
+      "https://api.kmhub.cprime.com/v1/sign-in",
       { email, accessToken },
       { withCredentials: true }
     );
@@ -161,7 +193,7 @@ export class Epic2Service {
     formData.append("body", JSON.stringify({ message: prompt }));
 
     const session:AxiosResponse = await axios.post(
-      "https://kmhub.cprime.com/v1/agent/session",
+      "https://api.kmhub.cprime.com/v1/agent/session",
       formData,
       {
         headers: {
@@ -171,49 +203,120 @@ export class Epic2Service {
         withCredentials : true,
       }
     );
+    console.log("sessiondata is " ,session.data.data)
+    console.log(this.cookies)
+    const response = await axios.get(
+  `https://api.kmhub.cprime.com/v1/agent/${session.data.data}`,
+  {
+    headers: {
+      Cookie: this.cookies.join("; "),
+    },
+    responseType: 'stream',
+  }
+);
     
-    const eventSource =  new (EventSource as any)(`https://kmhub.cprime.com/v1/agent/${session.data}`,{
-      headers: {
-        Cookie: this.cookies.join(";")
-      },
+return new Promise((resolve, reject) => {
+  const collected = {
+    messages: [] as string[],
+    references: [] as any[],
+  };
+
+  let buffer = ""; // Buffer for incomplete lines
+  let currentEvent = ""; // Track current event type
+
+  // Handle incoming data chunks
+  response.data.on("data", (chunk: Buffer) => {
+    buffer += chunk.toString();
+    const lines = buffer.split("\n");
+
+    // Keep the last incomplete line in buffer
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      if (!trimmedLine || trimmedLine.startsWith(":")) continue; // Skip empty lines/comments
+
+      if (trimmedLine.startsWith("event:")) {
+        currentEvent = trimmedLine.substring(6).trim();
+        console.log(`📌 Event type: ${currentEvent}`);
+        continue;
+      }
+
+      if (trimmedLine.startsWith("data:")) {
+        const data = trimmedLine.substring(5).trim();
+
+        try {
+          const parsedData = JSON.parse(data);
+
+          if (currentEvent === "message") {
+            collected.messages.push(parsedData.message || parsedData.content || parsedData);
+            console.log("💬 Message:", parsedData.message || parsedData.content || parsedData);
+          } else if (currentEvent === "references") {
+            collected.references.push(parsedData);
+            console.log("🔗 References:", parsedData);
+          }
+        } catch {
+          // Plain text data
+          if (currentEvent === "message") {
+            collected.messages.push(data);
+            console.log("💬 Message:", data);
+          } else if (currentEvent === "references") {
+            collected.references.push(data);
+            console.log("🔗 References:", data);
+          }
+        }
+
+        // Resolve immediately on complete/DONE
+        if (data === "complete" || data === "[DONE]") {
+          console.log("🏁 Stream complete");
+          const result = {
+            messages: collected.messages.join("\n"),
+            references: collected.references
+          };
+          resolve(JSON.stringify(result, null, 2));
+        }
+      }
     }
-    );
+  });
 
-    return new Promise((resolve,reject)=> {
-      const collected = {messages:[] as string[], references:[] as any [] };
-    
+  // Handle stream end as a fallback
+  response.data.on("end", () => {
+    if (buffer.trim()) {
+      // Process any remaining buffered line
+      const trimmedLine = buffer.trim();
+      if (trimmedLine.startsWith("data:")) {
+        const data = trimmedLine.substring(5).trim();
+        collected.messages.push(data);
+      }
+    }
 
-      eventSource.addEventListener("message", (event:MessageEvent) => {
-            
-            collected.messages.push(event.data);
-          });
-      eventSource.addEventListener("references", (event: MessageEvent) => {
-          console.log("🔗 references:", event.data);
-          try {
-            collected.references.push(JSON.parse(event.data));
-          } catch {
-            collected.references.push(event.data);
-          }});
-        eventSource.addEventListener("complete", () => {
-          console.log("🏁 Received 'complete' event — closing stream.");
-          eventSource.close();
-          const finalOutput = [
-          "💬 Messages:",
-          collected.messages.join("\n"),
-          collected.references.length
-            ? `\n🔗 References:\n${JSON.stringify(collected.references, null, 2)}`
-            : "",
-        ].join("\n");
+    console.log("✅ Stream ended (fallback)");
+    const result = {
+      messages: collected.messages.join("\n"),
+      references: collected.references
+    };
+    resolve(JSON.stringify(result, null, 2));
+  });
 
-        resolve(finalOutput.trim());
-        });
-        eventSource.onerror = (err:any) => {
-          console.error("❌ SSE error or connection closed:", err);
-          eventSource.close();
-          // resolve with partial data to avoid hanging
-        };
-      })
-  } catch(error: any) {
+  // Handle errors
+  response.data.on("error", (err: any) => {
+    console.error("❌ Stream error:", err);
+
+    if (collected.messages.length > 0 || collected.references.length > 0) {
+      const result = {
+        messages: collected.messages.join("\n"),
+        references: collected.references
+      };
+      resolve(JSON.stringify(result, null, 2));
+    } else {
+      reject(new Error(`Stream error: ${err.message}`));
+    }
+  });
+});
+
+
+}catch(error: any) {
     console.error("❌ Error in getOppurtunities:", error.response?.data || error.message);
     throw new Error("Failed to fetch opportunities");
   }

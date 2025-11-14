@@ -8,7 +8,7 @@ import {prisma} from  "../prisma/lib/client.js"
 epic2Router.post("/analyze-transcript", upload.single("file"), async (req, res) => {
   try {
     const {userId, email} = (req as any ).user
-    const user = await prisma.findUnique({
+    const user = await prisma.user.findUnique({
       where: {email},
       select : {accessToken :true}
     })
